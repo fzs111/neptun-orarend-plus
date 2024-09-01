@@ -1,0 +1,24 @@
+{
+    "name": "neptun-orarend-plus",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.html",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "build:sass": "npx sass src/scss/:src/css/",
+        "build:ts": "npx tsc -p .",
+        "build:userscript": "node build.mjs",
+        "build": "npm run build:sass && npm run build:ts && npm run build:userscript",
+        "start": "npx http-server src -c-1 -a 127.0.0.1"
+    },
+    "author": "",
+    "license": "MIT",
+    "devDependencies": {
+        "@eslint/js": "^9.9.0",
+        "eslint": "^9.9.0",
+        "globals": "^15.9.0",
+        "sass": "^1.77.8",
+        "typescript": "^5.5.4",
+        "typescript-eslint": "^8.1.0"
+    }
+}

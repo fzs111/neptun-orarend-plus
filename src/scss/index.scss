@@ -1,0 +1,58 @@
+#timetable-column{
+    --row-gap: 0.05em;
+    --extra-width: 0.1em;
+
+    display: grid;
+    grid-auto-columns: fit-content(20em);
+    row-gap: var(--row-gap);
+    column-gap: 1em;
+    overflow-x: hidden;
+
+    padding-bottom: 2em;
+
+    height: 90vh;
+    
+    > div {
+        border: 1px solid black;
+        background-color: white;
+    }
+
+    .time-marker {
+        border: none;
+        padding: 0;
+
+        &{
+            /* move the times (& > *) to the bottom */
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            background-color: transparent;
+
+            > * {
+                /* move time (&) onto gridlines */
+                translate: 0 calc(50% + var(--row-gap) / 2);
+
+                background-color: white;
+                padding: 0 5px;
+
+                border: 1px solid black;
+            }
+        }
+        
+        &{
+            position: relative;
+
+            &::after {
+                content: '';
+                position: absolute;
+                display: block;
+                translate: 0 calc(var(--extra-width) / 2 + var(--row-gap));
+
+                width: 100vw;
+                border-top: calc(var(--extra-width) + var(--row-gap)) dashed gray;
+                z-index: -1;
+
+            }
+        }
+    }
+}
