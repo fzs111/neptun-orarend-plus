@@ -2,7 +2,7 @@
   "compilerOptions": {
     "module": "ESNext",
     "moduleResolution": "Node",
-    "target": "ES2023",
+    "target": "ESNext",
     "jsx": "react",
     "strict": true,
     "strictFunctionTypes": true,

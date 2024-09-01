@@ -9,27 +9,21 @@ function formatTime(t: number): string {
 type Course = {
     start: Time,
     end: Time,
+    properties: { [k: string]: string},
 }
 
-type CourseWithLane = Course & {
-    lane: number,
-}
-
-function addLaneToCourse(course: Course, lane: number): CourseWithLane {
-    return { ...course, lane };
-}
-
-function assignToLanes(courses: Course[]): [number, CourseWithLane[]] {
+function assignToLanes(courses: Course[]): [number, WeakMap<Course, number>] {
 
     courses.sort((a, b) => a.start - b.start);
 
     let lanes = 0;
     const freeLanes = new Set<number>;
-    const endsOfOngoing: CourseWithLane[] = [];
-    const coursesWithLanes = courses.map(course => {
+    const endsOfOngoing: Course[] = [];
+    const laneMap = new WeakMap<Course, number>;
+    for (const course of courses) {
         while (endsOfOngoing.length > 0 && endsOfOngoing.at(-1)!.end <= course.start) {
             const popped = endsOfOngoing.pop()!;
-            freeLanes.add(popped.lane);
+            freeLanes.add(laneMap.get(popped)!);
         }
 
         if (freeLanes.size === 0) {
@@ -40,7 +34,7 @@ function assignToLanes(courses: Course[]): [number, CourseWithLane[]] {
 
         freeLanes.delete(lane);
 
-        const courseWithLane = addLaneToCourse(course, lane);
+        laneMap.set(course, lane);
 
         const binarySearch = (arr: Course[], target: number) => {
             let start = 0;
@@ -58,12 +52,10 @@ function assignToLanes(courses: Course[]): [number, CourseWithLane[]] {
 
         const index = binarySearch(endsOfOngoing, course.end);
 
-        endsOfOngoing.splice(index, 0, courseWithLane);
+        endsOfOngoing.splice(index, 0, course);
+    };
 
-        return courseWithLane;
-    });
-
-    return [lanes, coursesWithLanes];
+    return [lanes, laneMap];
 }
 
 type Time = number;
@@ -86,7 +78,9 @@ function createTimeMap(courses: Course[]): Map<Time, number> {
     return timeMap;
 }
 
-function render(grid: HTMLElement, courses: CourseWithLane[], timeMap: Map<Time, number>, colOffset: number, rowOffset: number) {
+function renderCourseGroup(grid: HTMLElement, courses: Course[], timeMap: Map<Time, number>, laneMap: WeakMap<Course, number>, colOffset: number, rowOffset: number): string {
+    const colWidths = [];
+
     for (let i = 0; i < courses.length; i++) {
         const course = courses[i];
 
@@ -94,19 +88,29 @@ function render(grid: HTMLElement, courses: CourseWithLane[], timeMap: Map<Time,
 
         elem.textContent = String(i);
 
-        setCoursePositionInGrid(elem, course, timeMap, colOffset, rowOffset);
+        setCoursePositionInGrid(elem, course, timeMap, laneMap, colOffset, rowOffset);
 
         grid.append(elem);
+
+        colWidths.push('1fr');
     }
+
+    return colWidths.join(' ');
 }
 
-function setCoursePositionInGrid(elem: HTMLElement, course: CourseWithLane, timeMap: Map<number, number>, colOffset: number, rowOffset: number) {
+function setCoursePositionInGrid(elem: HTMLElement, course: Course, timeMap: Map<number, number>, laneMap: WeakMap<Course, number>, colOffset: number, rowOffset: number) {
+    const lane = laneMap.get(course);
+
+    if(lane === undefined) {
+        throw new Error('lane not assigned to course in `setCoursePositionInGrid`');
+    }
+
     setPositionInGrid(
         elem, 
-        course.lane + colOffset,
-        course.lane + colOffset + 1,
-        timeMap.get(course.start)! + rowOffset,
-        timeMap.get(course.end)! + rowOffset
+        colOffset + lane,
+        colOffset + lane + 1,
+        rowOffset + timeMap.get(course.start)!,
+        rowOffset + timeMap.get(course.end)!
     );
 }
 
@@ -121,71 +125,113 @@ function createElement(grid: HTMLElement): HTMLDivElement {
     return grid.appendChild(document.createElement('div'));
 }
 
-const courses = [
-    [
-        { start: time( 8, 0), end: time( 9,50) },
-        { start: time(15,20), end: time(17, 0) },
-        { start: time(10,45), end: time(12,25) },
-        { start: time(13,30), end: time(15,10) },
-        { start: time(12,35), end: time(14,15) },
-        { start: time( 9,50), end: time(11,30) },
-        { start: time(13,30), end: time(15,10) },
-    ],
-    [
-        { start: time( 8, 0), end: time( 9,40) },
-        { start: time(15,20), end: time(17, 0) },
-        { start: time(10,45), end: time(12,25) },
-        { start: time(13,30), end: time(15,10) },
-        { start: time(12,35), end: time(14,15) },
-        { start: time(13,30), end: time(15,10) },
-        { start: time(13,30), end: time(15,10) },
-    ],
-];
 
-const timeMap = createTimeMap(courses.flat());
-const grid = document.querySelector('#timetable-column')! as HTMLElement;
 
-const timeIter = timeMap.entries();
-const { done, value: firstEntry } = timeIter.next();
+function main(){
+    const courses = [
+        { start: time( 8, 0), end: time( 9,50), properties: {'Tárgy': 'asd', 'Day': 'Monday'} },
+        { start: time(15,20), end: time(17, 0), properties: {'Tárgy': 'asd', 'Day': 'Monday'} },
+        { start: time(10,45), end: time(12,25), properties: {'Tárgy': 'bxd', 'Day': 'Monday'} },
+        { start: time(13,30), end: time(15,10), properties: {'Tárgy': 'emk', 'Day': 'Monday'} },
+        { start: time(12,35), end: time(14,15), properties: {'Tárgy': 'bxd', 'Day': 'Monday'} },
+        { start: time( 9,50), end: time(11,30), properties: {'Tárgy': 'emk', 'Day': 'Monday'} },
+        { start: time(13,30), end: time(15,10), properties: {'Tárgy': 'bxd', 'Day': 'Monday'} },
+        { start: time( 8, 0), end: time( 9,40), properties: {'Tárgy': 'emk', 'Day': 'Tuesday'} },
+        { start: time(15,20), end: time(17, 0), properties: {'Tárgy': 'bxd', 'Day': 'Tuesday'} },
+        { start: time(10,45), end: time(12,25), properties: {'Tárgy': 'emk', 'Day': 'Tuesday'} },
+        { start: time(13,30), end: time(15,10), properties: {'Tárgy': 'asdf', 'Day': 'Tuesday'} },
+        { start: time(12,35), end: time(14,15), properties: {'Tárgy': 'asd', 'Day': 'Tuesday'} },
+        { start: time(13,30), end: time(15,10), properties: {'Tárgy': 'emk', 'Day': 'Tuesday'} },
+        { start: time(13,30), end: time(15,10), properties: {'Tárgy': 'asd', 'Day': 'Tuesday'} },
+    ];
 
-if(done) {
-    throw new Error('No items in the timetable');
+    const grid = document.querySelector('#timetable-column')! as HTMLElement;
+    renderTimetableGrid(grid, courses, ['Day']);
 }
 
-addTimeMarkerElem(firstEntry);
+document.addEventListener('DOMContentLoaded', main);
 
-//this relies on the fact that `timeMap` is sorted by time
-let prevTime = firstEntry;
+function renderTimetableGrid(grid: HTMLElement, courses: Course[], groupByKeys: string[]) {
+  const timeMap = createTimeMap(courses);
 
-const lengths = [];
-for(const time of timeIter) {
-    lengths.push(String(time[0] - prevTime[0]) + 'fr');
-    
-    addTimeMarkerElem(time);
+  const rowHeights = renderTimeMarkerColumn(grid, timeMap, groupByKeys.length);
 
-    prevTime = time;
+  const headerTemplateRowHeights = groupByKeys.map(() => 'min-content').join(' ');
+
+  grid.style.gridTemplateRows = `${headerTemplateRowHeights} ${rowHeights}`;
+
+  renderCoursesWithHeader(grid, courses, groupByKeys, timeMap, 1, 0);
 }
 
-grid.style.gridTemplateRows = `min-content ${lengths.join(' ')}`;
+function renderCoursesWithHeader(grid: HTMLElement, courses: Course[], groupByKeys: string[], timeMap: Map<number, number>, startColumn: number, startRow: number): [number, string] {
+    if(groupByKeys.length === 0) {
 
-let columns = 1;
-for(const coursesInADay of courses) {
-    const [laneCount, coursesWithLanes] = assignToLanes(coursesInADay);
+        const [laneCount, laneMap] = assignToLanes(courses);
 
-    const dayMarker = createElement(grid);
-    setPositionInGrid(dayMarker, columns, columns + laneCount, 0, 1);
-    dayMarker.innerText = 'Day';
+        const templateColWidths = renderCourseGroup(grid, courses, timeMap, laneMap, startColumn, startRow);
 
-    
-    render(grid, coursesWithLanes, timeMap, columns, 1);
-    
-    columns += laneCount + 1;
+        return [laneCount, templateColWidths];
+    } else {
+        const [key, ...newGroupByKeys] = groupByKeys;
+
+        
+        const groups = groupCourses(courses, key);
+        
+        let columns = 0;
+        const templateColWidths = [];
+        for(const [title, group] of groups) {
+
+            const groupMarker = createElement(grid);
+            groupMarker.innerText = title;
+
+            const [width, curTemplateColWidths] = renderCoursesWithHeader(grid, group, newGroupByKeys, timeMap, startColumn + columns, startRow + 1);
+            templateColWidths.push(curTemplateColWidths);
+            
+            setPositionInGrid(groupMarker, startColumn + columns, startColumn + columns + width, startRow, startRow + 1);
+
+            columns += width;
+        }
+
+        return [columns, templateColWidths.join(' ')];
+    }
 }
 
-function addTimeMarkerElem(time: [number, number]) {
-    const timeMarker = createElement(grid);
-    setPositionInGrid(timeMarker, 0, 1, time[1], time[1] + 1);
-    timeMarker.classList.add('time-marker');
-    const timeMarkerInner = timeMarker.appendChild(document.createElement('div'));
-    timeMarkerInner.innerText = formatTime(time[0]);
+/**
+ * @returns string of CSS `grid-template-rows` row heights
+ */
+function renderTimeMarkerColumn(grid: HTMLElement, timeMap: Map<number, number>, startRow: number): string {
+    const timeIter = timeMap.entries();
+    const { done, value: firstEntry } = timeIter.next();
+
+    if (done) {
+        throw new Error('No items in the timetable');
+    }
+
+    function addTimeMarkerElem(time: [number, number]) {
+        const timeMarker = createElement(grid);
+        setPositionInGrid(timeMarker, 0, 1, startRow + time[1] - 1, startRow + time[1]);
+        timeMarker.classList.add('time-marker');
+        const timeMarkerInner = timeMarker.appendChild(document.createElement('div'));
+        timeMarkerInner.innerText = formatTime(time[0]);
+    }
+
+    addTimeMarkerElem(firstEntry);
+
+    //this relies on the fact that `timeMap` is sorted by time
+    let prevTime = firstEntry;
+
+    const lengths = [];
+    for (const time of timeIter) {
+        lengths.push(String(time[0] - prevTime[0]) + 'fr');
+
+        addTimeMarkerElem(time);
+
+        prevTime = time;
+    }
+
+    return lengths.join(' ');
+}
+
+function groupCourses(courses: Course[], key: string): Map<string, Course[]> {
+    return Map.groupBy(courses, course => course.properties[key]);
 }
