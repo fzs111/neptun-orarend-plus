@@ -2,6 +2,11 @@
     --row-gap: 0.05em;
     --extra-width: 0.1em;
 
+    --z-header-marker: 3;
+    --z-time-marker: 2;
+    --z-course: 1;
+    --z-horizontal-line: 0;
+
     display: grid;
     row-gap: var(--row-gap);
     column-gap: 1em;
@@ -9,28 +14,28 @@
 
     height: 90vh;
     
-    > div {
+    > * {
         border: 1px solid black;
         background-color: white;
-        z-index: 1;
     }
 
     .time-marker {
         border: none;
         padding: 0;
 
-        &{
-            background-color: transparent;
+        position: sticky;
+        left: 0px;
+        z-index: var(--z-time-marker);
 
-            > * {
-                /* move time (&) onto gridlines */
-                translate: 0 calc(-50% - var(--row-gap) / 2);
+        > * {
+            /* move time (&) onto gridlines */
+            translate: 0 calc(-50% - var(--row-gap) / 2);
 
-                background-color: white;
-                padding: 0 5px;
+            background-color: white;
+            padding: 0 5px;
 
-                border: 1px solid black;
-            }
+            border: 1px solid black;
+
         }
     }
 
@@ -38,7 +43,7 @@
         border: none;
         border-top: calc(var(--extra-width) + var(--row-gap)) dashed gray;
         translate: 0 calc(-1 * (var(--extra-width) / 2 + var(--row-gap)));
-        z-index: 0;
+        z-index: var(--z-horizontal-line);
         transition: border-color 1s;
 
         &:hover{
@@ -46,5 +51,15 @@
         }
     }
 
-    
+    .course {
+        justify-self: start;
+        z-index: var(--z-course);
+    }
+
+    .header-marker {
+        position: sticky;
+        top: 0px;
+
+        z-index: var(--z-header-marker);
+    }
 }
