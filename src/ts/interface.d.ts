@@ -1,9 +1,11 @@
 declare global {
     interface Window {
-        updateCoursesList(coursesList: CourseInfo): void;
+        updateCoursesList(coursesList: SubjectInfo): void;
     }
 }
 
 
-
-export type CourseInfo = Record<string, Record<string, { checked: boolean, metadata: Record<string, string> }>>;
+export type CourseMetadataEntry = { titleText: string | null, innerText: string}
+export type SubjectInfo = Record<string, CourseData>;
+export type CourseData = Record<string, { checked: boolean, metadata: CourseMetadata }>;
+export type CourseMetadata = Record<string, CourseMetadataEntry>;

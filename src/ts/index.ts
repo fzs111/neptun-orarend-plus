@@ -1,4 +1,6 @@
-type CourseInfo = import('./interface').CourseInfo;
+
+type SubjectInfo = import('./interface').SubjectInfo;
+type CourseMetadataEntry = import('./interface').CourseMetadataEntry;
 
 console.log('[Neptun Órarend+] Injected script running');
 
@@ -9,13 +11,32 @@ function formatTime(t: number): string {
     return `${Math.floor(t / 60)}:${Math.floor(t % 60).toString().padStart(2, '0')}`;
 }
 
+type Day = 'H' | 'K' | 'SZE' | 'CS' | 'P' | 'SZO' | 'V';
 
 type Course = {
-    start: Time,
-    end: Time,
-    properties: { [k: string]: unknown },
+    timetableInfo: TimetableInfo,
+    properties: { [k: string]: CourseMetadataEntry },
+    
+    subject: string,
+    checked: boolean,
+    code: string,
+    color: string,
 }
 
+type GroupSelector = {
+    group(courses: Course[]): CourseGroup[]
+}
+
+type CourseGroup = {
+    header: string,
+    courses: Course[],
+}
+
+type TimetableInfo = {
+    day: Day,
+    start: Time,
+    end: Time,
+}
 
 type Time = number;
 
@@ -47,7 +68,7 @@ function createElement(grid: HTMLElement): HTMLDivElement {
 
 
 
-window.updateCoursesList = function (coursesList: CourseInfo) {
+window.updateCoursesList = function (coursesList: SubjectInfo) {
 
     console.log('[Neptun Órarend+] Updating course list');
 
@@ -66,11 +87,7 @@ window.updateCoursesList = function (coursesList: CourseInfo) {
                 const days = ['H', 'K', 'SZE', 'CS', 'P', 'SZO', 'V'];
 
                 for (const course of courses) {
-                    const idx = days.indexOf(String(course.properties.Nap));
-
-                    if (idx === -1) {
-                        continue;
-                    }
+                    const idx = days.indexOf(course.timetableInfo.day);
 
                     out[idx].courses.push(course);
                 }
@@ -81,34 +98,33 @@ window.updateCoursesList = function (coursesList: CourseInfo) {
     ]);
 };
 
-function convertCoursesToTimetableFormat(coursesList: CourseInfo) {
+function convertCoursesToTimetableFormat(coursesList: SubjectInfo): Course[] {
     const courses = [];
 
     const colorGenerator = generateColors();
     for (const [subject, coursesObj] of Object.entries(coursesList)) {
-        const color = colorGenerator.next().value;
+        const color = colorGenerator.next().value!;
         for (const [courseCode, properties] of Object.entries(coursesObj)) {
             const timetableInfo = properties.metadata["Órarend infó"];
-            const match = timetableInfo.match(/^(\w+):(\d+:\d+)-(\d+:\d+)/);
+            const match = timetableInfo.innerText.match(/^(\w+):(\d+:\d+)-(\d+:\d+)/);
             if (!match) {
                 continue;
             }
-            const [, day, startString, endString] = match;
-            const startTime = time(...startString.split(':').map(Number) as [number, number]);
-            const endTime = time(...endString.split(':').map(Number) as [number, number]);
+            const [, dayString, startString, endString] = match;
+            if(!['H', 'K', 'SZE', 'CS', 'P', 'SZO', 'V'].includes(dayString)) {
+                throw new Error(`Invalid day value: ${dayString}`);
+            }
+            const day = dayString as Day; 
+            const start = time(...startString.split(':').map(Number) as [number, number]);
+            const end = time(...endString.split(':').map(Number) as [number, number]);
 
             courses.push({
-                start: startTime,
-                end: endTime,
-                properties: {
-                    Nap: day,
-                    subject,
-                    Tárgy: subject.match(/^[\w\s]*/)?.[0] || subject,
-                    checked: properties.checked,
-                    code: courseCode,
-                    color,
-                    ...properties.metadata
-                }
+                timetableInfo: { day, start, end },
+                properties: properties.metadata,
+                subject,
+                checked: properties.checked,
+                code: courseCode,
+                color,
             });
         }
     }
@@ -119,7 +135,7 @@ function renderTimetableGrid(grid: HTMLElement, courses: Course[], groupByKeys: 
     // Clear all children
     grid.replaceChildren();
 
-    const timeMap = createTimeMap(courses);
+    const timeMap = createTimeMap(courses.map(course => course.timetableInfo));
     const templateRowHeights = renderTimeMarkerColumn(grid, timeMap, groupByKeys.length);
 
     const headerTemplateRowHeights = groupByKeys.map(() => 'min-content').join(' ');
@@ -134,14 +150,14 @@ function renderTimetableGrid(grid: HTMLElement, courses: Course[], groupByKeys: 
 
     function assignToLanes(courses: Course[]): [number, WeakMap<Course, number>] {
 
-        courses.sort((a, b) => a.start - b.start);
+        courses.sort((a, b) => a.timetableInfo.start - b.timetableInfo.start);
 
         let lanes = 0;
         const freeLanes = new Set<number>;
         const endsOfOngoing: Course[] = [];
         const laneMap = new WeakMap<Course, number>;
         for (const course of courses) {
-            while (endsOfOngoing.length > 0 && endsOfOngoing.at(-1)!.end <= course.start) {
+            while (endsOfOngoing.length > 0 && endsOfOngoing.at(-1)!.timetableInfo.end <= course.timetableInfo.start) {
                 const popped = endsOfOngoing.pop()!;
                 freeLanes.add(laneMap.get(popped)!);
             }
@@ -161,7 +177,7 @@ function renderTimetableGrid(grid: HTMLElement, courses: Course[], groupByKeys: 
                 let end = arr.length;
                 while (start < end) {
                     const middle = Math.floor((start + end) / 2);
-                    if (arr[middle].end > target) {
+                    if (arr[middle].timetableInfo.end > target) {
                         start = middle + 1;
                     } else {
                         end = middle;
@@ -170,7 +186,7 @@ function renderTimetableGrid(grid: HTMLElement, courses: Course[], groupByKeys: 
                 return start;
             };
 
-            const index = binarySearch(endsOfOngoing, course.end);
+            const index = binarySearch(endsOfOngoing, course.timetableInfo.end);
 
             endsOfOngoing.splice(index, 0, course);
         };
@@ -179,7 +195,7 @@ function renderTimetableGrid(grid: HTMLElement, courses: Course[], groupByKeys: 
     }
 
 
-    function createTimeMap(courses: Course[]): Map<Time, number> {
+    function createTimeMap(courses: TimetableInfo[]): Map<Time, number> {
         const times: Set<Time> = new Set;
         for (const course of courses) {
             times.add(course.start);
@@ -205,8 +221,8 @@ function renderTimetableGrid(grid: HTMLElement, courses: Course[], groupByKeys: 
 
             const elem = document.createElement('div');
 
-            elem.textContent = createMonogram(String(course.properties.Oktatók));
-            elem.style.backgroundColor = String(course.properties.color);
+            elem.textContent = createMonogram(String(course.properties.Oktatók.innerText));
+            elem.style.backgroundColor = course.color;
 
             elem.classList.add('course');
 
@@ -232,8 +248,8 @@ function renderTimetableGrid(grid: HTMLElement, courses: Course[], groupByKeys: 
             elem,
             colOffset + lane,
             colOffset + lane + 1,
-            rowOffset + timeMap.get(course.start)!,
-            rowOffset + timeMap.get(course.end)!
+            rowOffset + timeMap.get(course.timetableInfo.start)!,
+            rowOffset + timeMap.get(course.timetableInfo.end)!
         );
     }
 
@@ -321,13 +337,4 @@ function renderTimetableGrid(grid: HTMLElement, courses: Course[], groupByKeys: 
         }
     }
 
-}
-
-type GroupSelector = {
-    group(courses: Course[]): CourseGroup[]
-}
-
-type CourseGroup = {
-    header: string,
-    courses: Course[],
 }

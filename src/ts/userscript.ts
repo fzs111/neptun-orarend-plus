@@ -11,19 +11,16 @@
 // @grant        GM.setValue
 // ==/UserScript==
 
+type CourseMetadata = import('./interface').CourseMetadata;
+
 //type CourseInfo = import('./interface').CourseInfo;
 
 declare function $$magicalImportHTMLCode$$(): string;
 
 const htmlCode = $$magicalImportHTMLCode$$(); //This call is replaced by a string literal of the bundled HTML file by `build.mjs`
 
-declare const GM: any;
-
-
 (function() {
     'use strict';
-    
-    const localStorageKey = 'neptun-orarend-plus-data';
     
     const url = window.location;
 
@@ -34,15 +31,17 @@ declare const GM: any;
     }
 
     async function handleTimetablePage() {
-        const courses = JSON.parse(await GM.getValue('courses', '{}'));
-        
         console.log('[Neptun Órarend+] Injecting HTML page');
 
         document.open();
         document.write(htmlCode);
         document.close();
 
-        unsafeWindow.updateCoursesList(courses);
+        unsafeWindow.updateCoursesList(await GM.getValue('courses', {}));
+
+        await GM.addValueChangeListener('courses', (_key, _oldValue, newValue) => {
+            unsafeWindow.updateCoursesList(newValue);
+        });
     }
 
     function handleNeptunPage() {
@@ -58,43 +57,61 @@ declare const GM: any;
         }
 
 
-        let lastSubject = null;
+        let lastSubject: string | null = null;
         const update = async (forceRefresh = false) => {
             const tabElement = document.querySelector('#Subject_data_for_schedule_tab_body');
             if (!tabElement)
                 return;
 
-            const subject = tabElement.querySelector('h2').textContent;
+            const subjectElem = tabElement.querySelector('h2');
+
+            if(!subjectElem) {
+                return;
+            }
+
+            const coursesTable = tabElement.querySelector('table.table_body');
+
+            if(!coursesTable) {
+                return;
+            }
+
+            const subject = subjectElem.textContent;
 
             if (subject === lastSubject && !forceRefresh)
                 return;
 
             lastSubject = subject;
 
+            if(!subject) {
+                return;
+            }
+
             console.log('Refreshing data for subject %s', subject);
 
-            const coursesTable = tabElement.querySelector('table.table_body');
 
-            const data = JSON.parse(await GM.getValue('courses', '{}'));
+            const data: SubjectInfo = await GM.getValue('courses', {});
 
             const currentSubjectData = data[subject] ??= {};
 
-            const coursesTableHeaders = Array.from(coursesTable.querySelectorAll('th'), e => e.textContent);
+            const coursesTableHeaders = Array.from(coursesTable.querySelectorAll('th'), e => e.textContent || '');
             for (const courseRow of coursesTable.querySelectorAll('tbody>tr')) {
-                const currentCourseMetaData = {};
+                const currentCourseMetaData: CourseMetadata = {};
                 const courseRowCells = courseRow.querySelectorAll('td');
                 for (let i = 0; i < coursesTableHeaders.length; i++) {
-                    currentCourseMetaData[coursesTableHeaders[i]] = courseRowCells[i].querySelector('.tooltipDetails')?.innerText ?? courseRowCells[i].innerText;
+                    const titleText = courseRowCells[i].querySelector<HTMLElement>('.tooltipDetails')?.innerText ?? null;
+                    const innerText = courseRowCells[i].innerText;
+                    currentCourseMetaData[coursesTableHeaders[i]] = { innerText, titleText };
                 }
-                const checkbox = courseRow.querySelector('input[type="checkbox"]');
+                const checkbox = courseRow.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
 
-                currentSubjectData[currentCourseMetaData['Kurzus kódja']] = {
+                const courseCode = currentCourseMetaData['Kurzus kódja'].innerText;
+                currentSubjectData[courseCode] = {
                     metadata: currentCourseMetaData,
                     checked: checkbox.checked
                 };
             }
 
-            GM.setValue('courses', JSON.stringify(data));
+            GM.setValue('courses', data);
         };
 
         setInterval(update, 500, false);
