@@ -4,3 +4,4 @@ src/js/*
 src/css/*
 test-data-*
 gh-pages
+userscript-final.user.js
