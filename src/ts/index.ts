@@ -338,3 +338,22 @@ function renderTimetableGrid(grid: HTMLElement, courses: Course[], groupByKeys: 
     }
 
 }
+
+function setupFocusHandlers(grid: HTMLElement){
+    grid.addEventListener('focusin', e => {
+        if(e.target instanceof HTMLElement && e.target.classList.contains('course')) {
+            e.target.classList.add('focused');
+        }
+    });
+    grid.addEventListener('focusout', e => {
+        if(e.target instanceof HTMLElement) {
+            e.target.classList.remove('focused');
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const grid = document.querySelector<HTMLElement>('#timetable-column')!;
+
+    setupFocusHandlers(grid);
+});

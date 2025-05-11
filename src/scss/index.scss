@@ -1,3 +1,7 @@
+body{
+    margin-block: 0;
+}
+
 #timetable-column{
     --row-gap: 0.05em;
     --extra-width: 0.1em;
@@ -11,8 +15,9 @@
     row-gap: var(--row-gap);
     column-gap: 1em;
 
+    height: 100svh;
 
-    height: 90vh;
+    overflow-x: auto;
     
     > * {
         border: 1px solid black;
@@ -54,6 +59,11 @@
     .course {
         justify-self: start;
         z-index: var(--z-course);
+
+        .focused {
+            background-color: red;
+            color: white;
+        }
     }
 
     .header-marker {
