@@ -166,7 +166,7 @@ function renderTimetableGrid(grid: HTMLElement, courses: Course[], groupByKeys: 
                 freeLanes.add(lanes++);
             }
 
-            const lane = freeLanes.keys().next().value;
+            const lane = freeLanes.keys().next().value!;
 
             freeLanes.delete(lane);
 
