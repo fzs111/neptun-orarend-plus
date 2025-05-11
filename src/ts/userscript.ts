@@ -6,6 +6,8 @@
 // @author       You
 // @match        https://neptun.uni-obuda.hu/hallgato/main.aspx?*ctrl=0303*
 // @match        https://fzs111.github.io/neptun-orarend-plus*
+// @match        http://localhost/*
+// @match        http://127.0.0.1/*
 // @grant        GM.registerMenuCommand
 // @grant        GM.getValue
 // @grant        GM.setValue
@@ -19,15 +21,18 @@ declare function $$magicalImportHTMLCode$$(): string;
 
 const htmlCode = $$magicalImportHTMLCode$$(); //This call is replaced by a string literal of the bundled HTML file by `build.mjs`
 
-(function() {
+(async function() {
     'use strict';
     
+    const timetableUrl = 'https://fzs111.github.io/neptun-orarend-plus';
     const url = window.location;
 
-    if(url.pathname.startsWith('/neptun-orarend-plus')) {
+    if(url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+        await setupCourseUpdates();
+    } else if(url.pathname.startsWith('/neptun-orarend-plus')) {
         handleTimetablePage();
     } else {
-        handleNeptunPage();
+        handleOldNeptunPage();
     }
 
     async function handleTimetablePage() {
@@ -37,25 +42,11 @@ const htmlCode = $$magicalImportHTMLCode$$(); //This call is replaced by a strin
         document.write(htmlCode);
         document.close();
 
-        unsafeWindow.updateCoursesList(await GM.getValue('courses', {}));
-
-        await GM.addValueChangeListener('courses', (_key, _oldValue, newValue) => {
-            unsafeWindow.updateCoursesList(newValue);
-        });
+        await setupCourseUpdates();
     }
 
-    function handleNeptunPage() {
+    function handleOldNeptunPage() {
         GM.registerMenuCommand('Órarend megnyitása', openTimetable);
-
-        function openTimetable() {
-            const childWindow = window.open('https://fzs111.github.io/neptun-orarend-plus', '_blank');
-
-            if (!childWindow) {
-                alert('Popup blocked');
-                return;
-            }
-        }
-
 
         let lastSubject: string | null = null;
         const update = async (forceRefresh = false) => {
@@ -116,4 +107,22 @@ const htmlCode = $$magicalImportHTMLCode$$(); //This call is replaced by a strin
 
         setInterval(update, 500, false);
     }
+    
+    function openTimetable() {
+        const childWindow = window.open(timetableUrl, '_blank');
+
+        if (!childWindow) {
+            alert('Popup blocked');
+            return;
+        }
+    }
+
+    async function setupCourseUpdates() {
+        unsafeWindow.updateCoursesList(await GM.getValue('courses', {}));
+
+        await GM.addValueChangeListener('courses', (_key, _oldValue, newValue) => {
+            unsafeWindow.updateCoursesList(newValue);
+        });
+    }
+
 })();
