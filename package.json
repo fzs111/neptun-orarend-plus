@@ -9,6 +9,7 @@
         "build:ts": "npx tsc -p .",
         "build:userscript": "node build.mjs",
         "build": "npm run build:sass && npm run build:ts && npm run build:userscript",
+        "build-ci": "npm run build:sass & npm run build:ts & npm run build:userscript",
         "start": "npx http-server -c-1 -a 127.0.0.1"
     },
     "author": "",

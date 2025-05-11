@@ -19,6 +19,8 @@ jobs:
     #    node-version: [22.x]
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
+    
+    if: github.ref_type == 'tag'
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-node@v4
@@ -26,9 +28,8 @@ jobs:
         node-version: 22.x
         cache: 'npm'
     - run: npm ci
-    - run: npm run build
+    - run: npm run build-ci
     - name: Release
       uses: softprops/action-gh-release@v2
-      if: github.ref_type == 'tag'
       with:
         files: userscript-final.user.js
