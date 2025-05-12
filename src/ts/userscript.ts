@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Neptun Órarend+
 // @namespace    http://tampermonkey.net/
-// @version      2024-02-01
+// @version      0.1.0
 // @description
 // @author       You
 // @match        https://neptun.uni-obuda.hu/hallgato/main.aspx?*ctrl=0303*
